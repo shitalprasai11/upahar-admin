@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Upahar Admin Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background: #f9f9f9;
+    }
+    h1 { color: #c44569; }
+    form, .product {
+      background: white;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    input, textarea {
+      width: 100%;
+      margin: 0.5rem 0;
+      padding: 0.5rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #00b894;
+      color: white;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .product-list {
+      margin-top: 2rem;
+    }
+    .product h3 {
+      margin: 0;
+    }
+    img {
+      max-width: 200px;
+      margin-top: 0.5rem;
+    }
+    .popup {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #00b894;
+      color: white;
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      z-index: 1000;
+      animation: fadeOut 0.3s ease 3s forwards;
+    }
+    @keyframes fadeOut {
+      to {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>🛠 Upahar Admin Panel</h1>
+  <form id="productForm">
+    <input type="text" id="name" placeholder="Product Name" required>
+    <input type="text" id="price" placeholder="Price" required>
+    <input type="text" id="badge" placeholder="Badge (e.g., 🎁 Combo)">
+    <input type="file" id="imageFile" accept="image/*" required>
+    <textarea id="description" placeholder="Product Description" required></textarea>
+    <button type="submit">Add Product</button>
+  </form>
+
+  <div class="product-list" id="productList">
+    <h2>📦 Product List</h2>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBXVOfUAgOJI5m5_ueVxXEIKCNnOBeqSck",
+      authDomain: "upahar-31530.firebaseapp.com",
+      projectId: "upahar-31530",
+      storageBucket: "upahar-31530.appspot.com",
+      messagingSenderId: "502869530000",
+      appId: "1:502869530000:web:9bccb598b5ffaac52a8f15",
+      measurementId: "G-G4606FD254"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+    const productsRef = collection(db, "products");
+
+    function showPopup(message) {
+      const popup = document.createElement("div");
+      popup.className = "popup";
+      popup.textContent = message;
+      document.body.appendChild(popup);
+      setTimeout(() => popup.remove(), 4000);
+    }
+
+    document.getElementById("productForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById("name").value;
+      const price = document.getElementById("price").value;
+      const badge = document.getElementById("badge").value;
+      const description = document.getElementById("description").value;
+      const file = document.getElementById("imageFile").files[0];
+
+      if (!file) {
+        alert("Please select an image.");
+        return;
+      }
+
+      try {
+        const filePath = `products/${Date.now()}_${file.name}`;
+        const imageRef = storageRef(storage, filePath);
+        await uploadBytes(imageRef, file);
+        const downloadURL = await getDownloadURL(imageRef);
+
+        const product = { name, price, badge, description, imageUrl: downloadURL };
+        await addDoc(productsRef, product);
+
+        showPopup("✅ Product uploaded!");
+        e.target.reset();
+        loadProducts();
+      } catch (error) {
+        console.error("❌ Upload failed:", error);
+        alert("Error uploading product.");
+      }
+    });
+
+    async function loadProducts() {
+      const list = document.getElementById("productList");
+      const snapshot = await getDocs(productsRef);
+      let html = "<h2>📦 Product List</h2>";
+      snapshot.forEach(doc => {
+        const p = doc.data();
+        html += `
+          <div class="product">
+            <h3>${p.badge || ""} ${p.name}</h3>
+            <p><strong>Price:</strong> ${p.price}</p>
+            <p>${p.description}</p>
+            <img src="${p.imageUrl}" alt="${p.name}">
+          </div>
+        `;
+      });
+      list.innerHTML = html;
+    }
+
+    loadProducts();
+  </script>
+</body>
+</html>
